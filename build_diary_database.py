@@ -65,14 +65,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--use-supervisor",
         action="store_true",
-        default=True,
-        help="Include supervisor reports (column K comments + extension notes).",
+        help="Enable supervisor ingestion (column K comments + extension notes).",
     )
     parser.add_argument(
         "--use-client-fallback",
         action="store_true",
-        default=True,
-        help="Store client PRODUCTION entries as fallback when no supervisor report exists for a date.",
+        help=(
+            "Enable storing client PRODUCTION entries as fallback when no supervisor report exists for a date."
+        ),
     )
     parser.add_argument(
         "--skip-supervisor",
@@ -784,7 +784,7 @@ def ingest_fallback(db: DiaryDatabase, entries: Iterable[FallbackActivity], stat
             stats["fallback_activities"] += 1
 
 
-def validate_ingest(db: DiaryDatabase) -> None:
+def validate_ingest(db: DiaryDatabase, *, require_coverage: bool = True) -> None:
     issues: List[str] = []
     cur = db.conn.cursor()
     tables = [
@@ -814,29 +814,30 @@ def validate_ingest(db: DiaryDatabase) -> None:
     conflicts = cur.fetchone()[0]
     if conflicts:
         issues.append("Fallback activities include dates that also have supervisor reports")
-    cur.execute(
-        """
-        WITH source_dates AS (
-            SELECT diary_date FROM activities
-            UNION SELECT diary_date FROM personnel
-            UNION SELECT diary_date FROM delays_issues
+    if require_coverage:
+        cur.execute(
+            """
+            WITH source_dates AS (
+                SELECT diary_date FROM activities
+                UNION SELECT diary_date FROM personnel
+                UNION SELECT diary_date FROM delays_issues
+            )
+            SELECT diary_date
+            FROM source_dates
+            WHERE diary_date NOT IN (
+                SELECT diary_date FROM supervisor_comments
+                UNION SELECT diary_date FROM supervisor_extension_notes
+                UNION SELECT diary_date FROM client_fallback_activities
+            )
+            """
         )
-        SELECT diary_date
-        FROM source_dates
-        WHERE diary_date NOT IN (
-            SELECT diary_date FROM supervisor_comments
-            UNION SELECT diary_date FROM supervisor_extension_notes
-            UNION SELECT diary_date FROM client_fallback_activities
-        )
-        """
-    )
-    uncovered = [row[0] for row in cur.fetchall()]
-    if uncovered:
-        issues.append(
-            "Missing supervisor and fallback coverage on dates: "
-            + ", ".join(sorted(uncovered)[:10])
-            + ("..." if len(uncovered) > 10 else "")
-        )
+        uncovered = [row[0] for row in cur.fetchall()]
+        if uncovered:
+            issues.append(
+                "Missing supervisor and fallback coverage on dates: "
+                + ", ".join(sorted(uncovered)[:10])
+                + ("..." if len(uncovered) > 10 else "")
+            )
     cur.execute(
         """
         WITH fallback_counts AS (
@@ -969,23 +970,23 @@ def run_ingest(args: argparse.Namespace) -> Dict[str, object]:
         ingest_fallback(db, fallback_entries, stats)
 
     db.commit()
-    validate_ingest(db)
+    validate_ingest(db, require_coverage=use_supervisor or use_fallback)
     stats["database_path"] = str(db_path)
     return stats
 
 
-def run_validate(database: str) -> None:
+def run_validate(database: str, *, require_coverage: bool = True) -> None:
     db_path = Path(database).expanduser().resolve()
     if not db_path.exists():
         raise FileNotFoundError(f"Database not found: {db_path}")
     db = DiaryDatabase(db_path, reset=False)
-    validate_ingest(db)
+    validate_ingest(db, require_coverage=require_coverage)
 
 
 def main() -> None:
     args = parse_args()
     if args.validate_only:
-        run_validate(args.database)
+        run_validate(args.database, require_coverage=args.use_supervisor or args.use_client_fallback)
         print("Validation successful.")
         return
     stats = run_ingest(args)
