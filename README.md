@@ -14,7 +14,7 @@ A Python-based tool for analyzing and auditing diary entries from client and sup
 
 ### Prerequisites
 
-- Python 3.13+
+- Python 3.11 (matches the interpreter configured in the Makefile)
 - Virtual environment at: `/Users/johnoshea/Documents/programming/venvs/94_Project_Cost Analyser/`
 - OpenAI API key (stored in `.env` file)
 
