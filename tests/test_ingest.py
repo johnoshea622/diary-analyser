@@ -55,17 +55,25 @@ def _create_supervisor_workbook(path: Path, diary_date: datetime) -> None:
     wb.save(path)
 
 
-def _make_args(root: Path, db_path: Path) -> argparse.Namespace:
+def _make_args(
+    root: Path,
+    db_path: Path,
+    *,
+    use_supervisor: bool = False,
+    use_client_fallback: bool = False,
+    skip_supervisor: bool = False,
+    skip_client_fallback: bool = False,
+) -> argparse.Namespace:
     return argparse.Namespace(
         root=str(root),
         client_dir="001-Client reports",
         supervisor_dir="002-Supervisor_Reports",
         database=str(db_path),
         reset=True,
-        use_supervisor=True,
-        use_client_fallback=True,
-        skip_supervisor=False,
-        skip_client_fallback=False,
+        use_supervisor=use_supervisor,
+        use_client_fallback=use_client_fallback,
+        skip_supervisor=skip_supervisor,
+        skip_client_fallback=skip_client_fallback,
     )
 
 
@@ -77,7 +85,12 @@ def test_ingest_with_supervisor_data(tmp_path: Path) -> None:
     _create_client_workbook(client_dir / "client.xlsx", datetime(2025, 10, 3))
     _create_supervisor_workbook(supervisor_dir / "supervisor.xlsx", datetime(2025, 10, 3))
 
-    args = _make_args(tmp_path, tmp_path / "diary.sqlite")
+    args = _make_args(
+        tmp_path,
+        tmp_path / "diary.sqlite",
+        use_supervisor=True,
+        use_client_fallback=True,
+    )
     stats = bdb.run_ingest(args)
 
     assert stats["activities"] == 2
@@ -104,7 +117,7 @@ def test_client_fallback_without_supervisor(tmp_path: Path) -> None:
     client_dir.mkdir(parents=True)
     _create_client_workbook(client_dir / "client.xlsx", datetime(2025, 10, 4))
 
-    args = _make_args(tmp_path, tmp_path / "diary.sqlite")
+    args = _make_args(tmp_path, tmp_path / "diary.sqlite", use_client_fallback=True)
     stats = bdb.run_ingest(args)
 
     assert stats["fallback_activities"] == 2
@@ -112,6 +125,49 @@ def test_client_fallback_without_supervisor(tmp_path: Path) -> None:
     conn = sqlite3.connect(args.database)
     fallback_rows = conn.execute("SELECT activity FROM client_fallback_activities").fetchall()
     assert {row[0] for row in fallback_rows} == {"Formed entry ramp", "Placed rebar at sump"}
+
+
+def test_optional_sources_disabled_by_default(tmp_path: Path) -> None:
+    client_dir = tmp_path / "001-Client reports"
+    supervisor_dir = tmp_path / "002-Supervisor_Reports"
+    client_dir.mkdir(parents=True)
+    supervisor_dir.mkdir(parents=True)
+    _create_client_workbook(client_dir / "client.xlsx", datetime(2025, 10, 7))
+    _create_supervisor_workbook(supervisor_dir / "supervisor.xlsx", datetime(2025, 10, 7))
+
+    args = _make_args(tmp_path, tmp_path / "diary.sqlite")
+    stats = bdb.run_ingest(args)
+
+    assert stats["supervisor_comments"] == 0
+    assert stats["supervisor_extension_notes"] == 0
+    assert stats["fallback_activities"] == 0
+
+    conn = sqlite3.connect(args.database)
+    assert conn.execute("SELECT COUNT(*) FROM supervisor_comments").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM client_fallback_activities").fetchone()[0] == 0
+
+
+def test_skip_flags_override_optional_sources(tmp_path: Path) -> None:
+    client_dir = tmp_path / "001-Client reports"
+    supervisor_dir = tmp_path / "002-Supervisor_Reports"
+    client_dir.mkdir(parents=True)
+    supervisor_dir.mkdir(parents=True)
+    _create_client_workbook(client_dir / "client.xlsx", datetime(2025, 10, 8))
+    _create_supervisor_workbook(supervisor_dir / "supervisor.xlsx", datetime(2025, 10, 8))
+
+    args = _make_args(
+        tmp_path,
+        tmp_path / "diary.sqlite",
+        use_supervisor=True,
+        use_client_fallback=True,
+        skip_supervisor=True,
+        skip_client_fallback=True,
+    )
+    stats = bdb.run_ingest(args)
+
+    assert stats["supervisor_comments"] == 0
+    assert stats["supervisor_extension_notes"] == 0
+    assert stats["fallback_activities"] == 0
 
 
 def test_validate_only_success(tmp_path: Path) -> None:
@@ -122,7 +178,12 @@ def test_validate_only_success(tmp_path: Path) -> None:
     _create_client_workbook(client_dir / "client.xlsx", datetime(2025, 10, 5))
     _create_supervisor_workbook(supervisor_dir / "supervisor.xlsx", datetime(2025, 10, 5))
 
-    args = _make_args(tmp_path, tmp_path / "diary.sqlite")
+    args = _make_args(
+        tmp_path,
+        tmp_path / "diary.sqlite",
+        use_supervisor=True,
+        use_client_fallback=True,
+    )
     bdb.run_ingest(args)
     # Should not raise
     bdb.run_validate(args.database)
