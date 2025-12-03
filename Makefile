@@ -1,4 +1,5 @@
-PYTHON ?= /Users/johnoshea/Documents/programming/venvs/94_Project_Cost\ Analyser/bin/python
+# Default interpreter; override with `PYTHON=/path/to/venv/bin/python make ...` to use your local virtual environment.
+PYTHON ?= python3
 ROOT ?= .
 DATABASE ?= diary.sqlite
 OUTPUT_DIR ?= analysis
