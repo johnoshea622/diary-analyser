@@ -195,5 +195,8 @@ def test_validate_only_reports_issues(tmp_path: Path) -> None:
     db.insert_activity("2025-10-06", "Activity only", "manual.xlsx", "Sheet1")
     db.commit()
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError) as excinfo:
         bdb.run_validate(db_path)
+
+    message = str(excinfo.value)
+    assert "2025-10-06" in message or "Missing supervisor and fallback coverage" in message
