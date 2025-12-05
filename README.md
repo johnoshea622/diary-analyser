@@ -14,7 +14,6 @@ A Python-based tool for analyzing and auditing diary entries from client and sup
 
 ### Prerequisites
 
-codex/update-readme-to-specify-python-version
 - Python 3.11 (matches the interpreter configured in the Makefile)
 - Required virtual environment (local usage only):
 /Users/johnoshea/Documents/programming/venvs/94_Project_Cost Analyser/

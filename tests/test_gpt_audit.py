@@ -2,7 +2,7 @@ import sqlite3
 from datetime import date
 from pathlib import Path
 
-from gpt_audit import ensure_audit_columns, interpret_response, record_audit_result
+from gpt_audit import ensure_audit_columns, interpret_response, record_audit_result, _send_prompt
 
 import build_diary_database as bdb
 
@@ -70,3 +70,15 @@ def test_interpret_response_flags_non_pass() -> None:
     assert interpret_response("PASS - looks good") == ("PASS", "")
     assert interpret_response("Needs work") == ("FLAG", "Needs work")
     assert interpret_response("") == ("FLAG", "[no response]")
+
+
+def test_send_prompt_legacy_returns_string() -> None:
+    class DummyLegacyClient:
+        class ChatCompletion:
+            @staticmethod
+            def create(model, messages, temperature):  # type: ignore[override]
+                return {"choices": [{"message": {"content": "Looks consistent"}}]}
+
+    result = _send_prompt("legacy", DummyLegacyClient, "gpt-3.5-turbo", "prompt text")
+    assert isinstance(result, str)
+    assert result == "Looks consistent"

@@ -111,6 +111,7 @@ def _send_prompt(client_kind: str, client, model: str, prompt: str) -> str:
     if isinstance(content, list):
         content = " ".join(part.get("text", "") for part in content if isinstance(part, dict))
         return str(content or "").strip()
+    return str(content or "").strip()
 
 
 def ensure_audit_columns(conn: sqlite3.Connection) -> None:

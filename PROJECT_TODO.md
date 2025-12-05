@@ -2,11 +2,11 @@
 
 | Section | Focus | Tasks Done / Total | Completion | Last Test Snapshot |
 | --- | --- | --- | --- | --- |
-| A | Ingestion & Schema | 3 / 5 | 60% | 2025-11-21 – `python3 -m pytest -q`, `make validate` |
-| B | Analysis Tools | 3 / 6 | 50% | 2025-11-21 – `python3 -m pytest -q` |
-| C | GPT Audit & Persistence | 6 / 6 | 100% | 2025-11-21 – `python3 gpt_audit.py --no-dry-run --samples 1` |
+| A | Ingestion & Schema | 3 / 5 | 60% | 2025-12-05 – `python3 -m pytest -q` |
+| B | Analysis Tools | 3 / 6 | 50% | 2025-12-05 – `python3 -m pytest -q` |
+| C | GPT Audit & Persistence | 6 / 6 | 100% | 2025-12-05 – `python3 -m pytest -q` |
 | D | Operations & Automation | 2 / 5 | 40% | 2025-11-21 – `make refresh` (previous run) |
-| E | Documentation & Onboarding | 1 / 4 | 25% | 2025-11-21 – Manual review |
+| E | Documentation & Onboarding | 1 / 4 | 25% | 2025-12-05 – Manual review, README prerequisite cleanup |
 
 Update this file at the end of every work session: adjust completion counts, record the last test commands that passed (or note failures), and add/remove tasks as scope evolves.
 
@@ -42,7 +42,7 @@ Update this file at the end of every work session: adjust completion counts, rec
 | ID | Task | Status | Notes / Tests |
 | --- | --- | --- | --- |
 | C1 | Prompt construction + dry-run | ✅ Done | Manual dry-run output |
-| C2 | Modern/legacy OpenAI client handling | ✅ Done | Verified with live API |
+| C2 | Modern/legacy OpenAI client handling | ✅ Done | Legacy `ChatCompletion` responses normalized; covered by `tests/test_gpt_audit.py::test_send_prompt_legacy_returns_string` |
 | C3 | Dependencies pinned in `requirements.txt` | ✅ Done | `python3 -m pip install -r requirements.txt` |
 | C4 | Add audit columns to SQLite schema | ✅ Done | Schema migration ensures audit columns |
 | C5 | Persist audit status/model/timestamp/notes | ✅ Done | `gpt_audit.py` updates DB; pytest coverage |
@@ -75,6 +75,10 @@ Update this file at the end of every work session: adjust completion counts, rec
 After completing tasks, append entries here:
 
 ```
+## 2025-12-05
+- Tasks: Hardened legacy GPT audit response handling; tidied README prerequisites
+- Tests: python3 -m pytest -q (pass)
+
 ## 2025-11-21
 - Tasks: Completed A3, C4, C5, C6
 - Tests: python3 -m pytest -q (pass); make validate (pass); python3 gpt_audit.py --no-dry-run --samples 1 (pass)
